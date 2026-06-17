@@ -237,6 +237,8 @@ class ImageCard(QWidget):
 
 
 class ZoomableImageScrollArea(QScrollArea):
+    image_clicked = pyqtSignal()
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWidgetResizable(True)
@@ -348,9 +350,23 @@ class ZoomableImageScrollArea(QScrollArea):
             self.update_view()
         super().resizeEvent(event)
 
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_start_pos = event.pos()
+        super().mousePressEvent(event)
+        
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if hasattr(self, 'drag_start_pos'):
+                diff = (event.pos() - self.drag_start_pos).manhattanLength()
+                if diff < 8:
+                    self.image_clicked.emit()
+        super().mouseReleaseEvent(event)
+
 
 class DetailViewer(QWidget):
     media_closed = pyqtSignal()
+    image_clicked = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -362,6 +378,7 @@ class DetailViewer(QWidget):
         
         # 1. Image View Setup
         self.image_scroll = ZoomableImageScrollArea()
+        self.image_scroll.image_clicked.connect(self.image_clicked.emit)
         self.stacked_widget.addWidget(self.image_scroll)
         
         # 2. Video View Setup
@@ -861,6 +878,7 @@ class MainWindow(QMainWindow):
         
         self.detail_viewer = DetailViewer()
         self.detail_viewer.media_closed.connect(self.clear_selection)
+        self.detail_viewer.image_clicked.connect(self.toggle_fullscreen)
         self.splitter.addWidget(self.detail_viewer)
         
         self.sidebar_container = QWidget()
@@ -921,6 +939,12 @@ class MainWindow(QMainWindow):
         self.worker = ImageWorker(folder)
         self.worker.thumbnail_ready.connect(self.add_image_card)
         self.worker.start()
+        
+        # Enable mouse tracking and event filter for fullscreen edge hover detection
+        self.setMouseTracking(True)
+        app = QApplication.instance()
+        if app:
+            app.installEventFilter(self)
 
     def add_image_card(self, filepath, filename, date_str, thumbnail):
         card = ImageCard(filepath, filename, date_str, thumbnail)
@@ -932,9 +956,38 @@ class MainWindow(QMainWindow):
             self.select_card(0)
 
     def clear_selection(self):
+        if getattr(self, 'is_fullscreen', False):
+            self.toggle_fullscreen()
         if self.current_index != -1:
             self.cards[self.current_index].set_selected(False)
             self.current_index = -1
+
+    def toggle_fullscreen(self):
+        if not hasattr(self, 'is_fullscreen'):
+            self.is_fullscreen = False
+        self.is_fullscreen = not self.is_fullscreen
+        if self.is_fullscreen:
+            self.sidebar_container.hide()
+            self.showFullScreen()
+        else:
+            self.sidebar_container.show()
+            self.showNormal()
+
+    def eventFilter(self, watched, event):
+        if getattr(self, 'is_fullscreen', False) and event.type() == QEvent.MouseMove:
+            pos = self.mapFromGlobal(event.globalPos())
+            w = self.width()
+            
+            # Show sidebar if mouse is hovering within 80 pixels of the right edge
+            if self.sidebar_container.isHidden():
+                if pos.x() >= w - 80:
+                    self.sidebar_container.show()
+            else:
+                # Hide sidebar if mouse moves to the left of the sidebar (x < w - 300)
+                if pos.x() < w - 300:
+                    self.sidebar_container.hide()
+                    
+        return super().eventFilter(watched, event)
 
     def on_card_clicked(self, filepath, card):
         index = self.cards.index(card)
@@ -955,6 +1008,11 @@ class MainWindow(QMainWindow):
         self.detail_viewer.load_media(selected_card.filepath)
 
     def keyPressEvent(self, event: QKeyEvent):
+        if event.key() == Qt.Key.Key_Escape:
+            if getattr(self, 'is_fullscreen', False):
+                self.toggle_fullscreen()
+                event.accept()
+                return
         if event.key() == Qt.Key.Key_Up:
             if self.current_index > 0:
                 self.select_card(self.current_index - 1)
