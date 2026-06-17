@@ -350,6 +350,8 @@ class ZoomableImageScrollArea(QScrollArea):
 
 
 class DetailViewer(QWidget):
+    media_closed = pyqtSignal()
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
@@ -598,6 +600,24 @@ class DetailViewer(QWidget):
         pdf_layout.addWidget(self.pdf_scroll)
         self.stacked_widget.addWidget(self.pdf_container)
         
+        # 4. Placeholder View Setup
+        self.placeholder_container = QWidget()
+        self.placeholder_container.setStyleSheet("background-color: #121212;")
+        placeholder_layout = QVBoxLayout(self.placeholder_container)
+        placeholder_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        self.placeholder_icon = QLabel("🖼️")
+        self.placeholder_icon.setStyleSheet("font-size: 64px; margin-bottom: 20px;")
+        self.placeholder_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder_layout.addWidget(self.placeholder_icon)
+        
+        self.placeholder_text = QLabel("Select a media file to view details")
+        self.placeholder_text.setStyleSheet("color: #666666; font-size: 16px; font-weight: 500;")
+        self.placeholder_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder_layout.addWidget(self.placeholder_text)
+        
+        self.stacked_widget.addWidget(self.placeholder_container)
+
         self.opacity_effect = QGraphicsOpacityEffect(self.stacked_widget)
         self.stacked_widget.setGraphicsEffect(self.opacity_effect)
         
@@ -607,6 +627,27 @@ class DetailViewer(QWidget):
         self.anim.setEndValue(1.0)
         self.anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
         
+        # Floating Close Button (the "cut sign" in the corner)
+        self.close_button = QPushButton("✕", self)
+        self.close_button.setFixedSize(36, 36)
+        self.close_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(30, 30, 30, 0.85);
+                color: #e0e0e0;
+                border: 1px solid rgba(80, 80, 80, 0.6);
+                border-radius: 18px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(220, 50, 50, 0.95);
+                color: white;
+                border: 1px solid rgba(220, 50, 50, 0.95);
+            }
+        """)
+        self.close_button.clicked.connect(self.clear_media)
+        self.close_button.hide()
+
         self.current_filepath = None
         self.current_pixmap = None
         self.current_pdf_doc = None
@@ -614,6 +655,9 @@ class DetailViewer(QWidget):
         self.pdf_zoom = 1.2
         self.is_muted = False
         self.last_volume = 70
+        
+        # Start on the placeholder screen
+        self.stacked_widget.setCurrentIndex(3)
 
     def load_media(self, filepath):
         self.anim.stop()
@@ -653,12 +697,31 @@ class DetailViewer(QWidget):
             self.media_player.setMedia(media_content)
             self.media_player.play()
             
+        self.close_button.show()
+        self.close_button.raise_()
+        
         self.anim.setStartValue(0.0)
         self.anim.setEndValue(1.0)
         self.anim.start()
 
     def update_image(self):
         self.image_scroll.update_view()
+
+    def clear_media(self):
+        self.anim.stop()
+        self.media_player.stop()
+        
+        if self.current_pdf_doc:
+            self.current_pdf_doc.close()
+            self.current_pdf_doc = None
+            
+        self.current_filepath = None
+        self.current_pixmap = None
+        self.image_scroll.set_pixmap(QPixmap())
+        
+        self.stacked_widget.setCurrentIndex(3)
+        self.close_button.hide()
+        self.media_closed.emit()
 
     def update_pdf_page(self):
         if not self.current_pdf_doc:
@@ -776,6 +839,14 @@ class DetailViewer(QWidget):
         if self.stacked_widget.currentIndex() == 0:
             self.update_image()
         super().resizeEvent(event)
+        
+        # Position close button (cut sign) in the top right corner
+        margin = 15
+        self.close_button.move(
+            self.width() - self.close_button.width() - margin,
+            margin
+        )
+        self.close_button.raise_()
 
 
 class MainWindow(QMainWindow):
@@ -789,6 +860,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.splitter)
         
         self.detail_viewer = DetailViewer()
+        self.detail_viewer.media_closed.connect(self.clear_selection)
         self.splitter.addWidget(self.detail_viewer)
         
         self.sidebar_container = QWidget()
@@ -858,6 +930,11 @@ class MainWindow(QMainWindow):
         
         if len(self.cards) == 1:
             self.select_card(0)
+
+    def clear_selection(self):
+        if self.current_index != -1:
+            self.cards[self.current_index].set_selected(False)
+            self.current_index = -1
 
     def on_card_clicked(self, filepath, card):
         index = self.cards.index(card)
