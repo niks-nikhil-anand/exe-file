@@ -1,15 +1,15 @@
 import os
 import sys
 from datetime import datetime
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QScrollArea, QSplitter, QGraphicsOpacityEffect,
     QFrame, QMainWindow
 )
-from PyQt6.QtGui import (
+from PyQt5.QtGui import (
     QPixmap, QColor, QPainter, QBrush, QPen, QKeyEvent, QPainterPath
 )
-from PyQt6.QtCore import (
+from PyQt5.QtCore import (
     Qt, QThread, pyqtSignal, pyqtProperty, QPropertyAnimation, 
     QEasingCurve, QRect
 )
