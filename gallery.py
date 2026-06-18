@@ -671,15 +671,7 @@ class GridImageItem(QWidget):
             self.double_clicked.emit(self)
         super().mouseDoubleClickEvent(event)
         
-    def trigger_fade_in(self):
-        self.opacity_effect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self.opacity_effect)
-        self.fade_anim = QPropertyAnimation(self.opacity_effect, b"opacity")
-        self.fade_anim.setDuration(400)
-        self.fade_anim.setStartValue(0.0)
-        self.fade_anim.setEndValue(1.0)
-        self.fade_anim.setEasingCurve(QEasingCurve.Type.OutQuad)
-        self.fade_anim.start()
+
         
     def paintEvent(self, event):
         p = self.parent()
@@ -1017,13 +1009,14 @@ class DetailViewer(QWidget):
         self.stacked_widget.addWidget(self.multi_image_scroll)
 
         self.opacity_effect = QGraphicsOpacityEffect(self.stacked_widget)
-        self.stacked_widget.setGraphicsEffect(self.opacity_effect)
+        self.stacked_widget.setGraphicsEffect(None)
         
         self.anim = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.anim.setDuration(300)
         self.anim.setStartValue(0.0)
         self.anim.setEndValue(1.0)
         self.anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.anim.finished.connect(lambda: self.stacked_widget.setGraphicsEffect(None))
         
         # Floating Close Button
         self.close_button = QPushButton("✕", self)
@@ -1184,9 +1177,7 @@ class DetailViewer(QWidget):
         self.close_button.show()
         self.close_button.raise_()
         
-        self.anim.setStartValue(0.0)
-        self.anim.setEndValue(1.0)
-        self.anim.start()
+        self.start_stacked_animation()
 
     def load_focused_image(self, filepath):
         self.stacked_widget.setCurrentIndex(0)
@@ -1222,7 +1213,6 @@ class DetailViewer(QWidget):
             item.double_clicked.connect(self.on_grid_item_double_clicked)
             item.remove_requested.connect(self.on_remove_item_requested)
             self.grid_items.append(item)
-            item.trigger_fade_in()
             
         self.rebuild_multi_image_grid(force=True)
         
@@ -1232,9 +1222,7 @@ class DetailViewer(QWidget):
         self.fit_button.hide()
         self.update_image_count_badge()
         
-        self.anim.setStartValue(0.0)
-        self.anim.setEndValue(1.0)
-        self.anim.start()
+        self.start_stacked_animation()
 
     def on_grid_item_clicked(self, clicked_item):
         for item in self.grid_items:
@@ -1313,6 +1301,13 @@ class DetailViewer(QWidget):
         for item in self.grid_items:
             item.update_image()
 
+    def start_stacked_animation(self):
+        self.anim.stop()
+        self.stacked_widget.setGraphicsEffect(self.opacity_effect)
+        self.anim.setStartValue(0.0)
+        self.anim.setEndValue(1.0)
+        self.anim.start()
+
     def update_image(self):
         self.image_scroll.update_view()
 
@@ -1327,6 +1322,7 @@ class DetailViewer(QWidget):
             return
             
         self.anim.stop()
+        self.stacked_widget.setGraphicsEffect(None)
         self.media_player.stop()
         
         if self.current_pdf_doc:
