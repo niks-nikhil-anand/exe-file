@@ -253,6 +253,12 @@ class DetailViewer(QWidget):
             self.stacked_widget.setCurrentIndex(1)
             self.set_image_zoom_controls_visible(False)
             self.video_viewer.load_media(filepath)
+        else:
+            self.stacked_widget.setCurrentIndex(3)
+            import os
+            self.placeholder_icon.setText("📄")
+            self.placeholder_text.setText(f"Preview not available for: {os.path.basename(filepath)}")
+            self.set_image_zoom_controls_visible(False)
 
         self.close_button.show()
         self.close_button.raise_()
@@ -432,6 +438,8 @@ class DetailViewer(QWidget):
         self.clear_grid_items()
 
         self.stacked_widget.setCurrentIndex(3)
+        self.placeholder_icon.setText("🖼️")
+        self.placeholder_text.setText("Select a media file or drop multiple images here")
         self.close_button.hide()
         self.set_image_zoom_controls_visible(False)
         self.badge_label.hide()
