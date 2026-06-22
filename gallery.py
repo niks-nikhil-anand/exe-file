@@ -1112,8 +1112,12 @@ class DetailViewer(QWidget):
                     image_paths.append(path)
             if image_paths:
                 print(f"Debug: Number of dropped images: {len(image_paths)}")
-                is_grid_active = (self.stacked_widget.currentIndex() == 4)
-                self.load_multiple_media_grid(image_paths, append=is_grid_active)
+                # A drag that starts from an unselected sidebar card briefly opens
+                # that card in the focused viewer.  The grid itself is still alive,
+                # so use its contents (rather than the visible stacked page) to
+                # decide whether this drop continues the current grid session.
+                append_to_grid = bool(self.grid_items)
+                self.load_multiple_media_grid(image_paths, append=append_to_grid)
                 event.acceptProposedAction()
 
     def set_drag_highlight(self, active):
@@ -1271,11 +1275,27 @@ class DetailViewer(QWidget):
             
         image_count = len(self.grid_items)
         
-        # Calculate columns and rows dynamically
+        # Keep the first few layouts predictable: one image fills the viewer,
+        # two images sit side-by-side, and a third starts the second row.
+        # Larger collections continue as a balanced grid.
         import math
-        cols = math.ceil(math.sqrt(image_count))
+        if image_count == 1:
+            cols = 1
+        elif image_count <= 4:
+            cols = 2
+        else:
+            cols = math.ceil(math.sqrt(image_count))
         rows = math.ceil(image_count / cols)
         self.current_grid_cols = cols
+
+        # A single image should use the complete grid viewport.  Multi-image
+        # layouts retain a small gutter so their boundaries remain clear.
+        if image_count == 1:
+            self.multi_image_grid.setContentsMargins(0, 0, 0, 0)
+            self.multi_image_grid.setSpacing(0)
+        else:
+            self.multi_image_grid.setContentsMargins(8, 8, 8, 8)
+            self.multi_image_grid.setSpacing(8)
         
         # Clear previous layout stretches
         for r in range(self.multi_image_grid.rowCount()):
