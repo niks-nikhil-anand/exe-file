@@ -145,6 +145,11 @@ class MainWindow(QMainWindow):
         self.watcher.directoryChanged.connect(self.on_directory_changed)
         self.setup_watcher(self.scan_folder)
         
+        # Polling timer as a fail-safe backup (every 2 seconds)
+        self.poll_timer = QTimer(self)
+        self.poll_timer.timeout.connect(self.poll_directories)
+        self.poll_timer.start(2000)
+        
         self.start_scan()
 
         self.setMouseTracking(True)
@@ -335,28 +340,42 @@ class MainWindow(QMainWindow):
         self.trigger_lazy_load()
 
     def setup_watcher(self, folder):
-        existing_paths = self.watcher.directories()
-        if existing_paths:
-            self.watcher.removePaths(existing_paths)
+        existing_paths = set(self.watcher.directories())
+        paths_to_watch = set()
         
         if os.path.exists(folder):
-            self.watcher.addPath(folder)
+            paths_to_watch.add(folder)
             
         subfolders = ["images", "videos", "pdf", "others"]
         for sub in subfolders:
             subpath = os.path.join(folder, sub)
             if os.path.isdir(subpath):
-                self.watcher.addPath(subpath)
+                paths_to_watch.add(subpath)
+                
+        new_paths = list(paths_to_watch - existing_paths)
+        removed_paths = list(existing_paths - paths_to_watch)
+        
+        if new_paths:
+            self.watcher.addPaths(new_paths)
+        if removed_paths:
+            self.watcher.removePaths(removed_paths)
 
     def on_directory_changed(self, path):
         print(f"Directory changed: {path}")
         self.setup_watcher(self.scan_folder)
         self.start_scan()
 
+    def poll_directories(self):
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
+        self.start_scan()
+
     def start_scan(self):
         if hasattr(self, 'worker') and self.worker.isRunning():
-            self.worker.stop()
+            self.scan_queued = True
+            return
             
+        self.scan_queued = False
         self.scanned_filepaths = set()
         
         self.worker = ImageWorker(self.scan_folder)
@@ -404,6 +423,9 @@ class MainWindow(QMainWindow):
                     self.detail_viewer.clear()
         
         QTimer.singleShot(50, self.trigger_lazy_load)
+        
+        if getattr(self, 'scan_queued', False):
+            self.start_scan()
 
     def sort_cards(self):
         selected_card = self.cards[self.current_index] if 0 <= self.current_index < len(self.cards) else None
