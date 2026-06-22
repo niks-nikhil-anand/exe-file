@@ -94,7 +94,12 @@ class MainWindow(QMainWindow):
         self.thumb_loader.thumbnail_loaded.connect(self.on_thumbnail_loaded)
         self.thumb_loader.start()
 
-        base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(os.path.abspath(sys.executable))
+            if "Contents/MacOS" in base_dir:
+                base_dir = os.path.abspath(os.path.join(base_dir, "..", "..", ".."))
+        else:
+            base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
         public_dir = os.path.join(base_dir, "public")
         folder = public_dir if os.path.exists(public_dir) else base_dir
 

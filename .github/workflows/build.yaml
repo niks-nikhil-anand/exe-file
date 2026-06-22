@@ -16,11 +16,14 @@ jobs:
     - name: Build EXE
       run: |
         pyinstaller --onefile --windowed gallery.py
+    - name: Package Windows ZIP
+      run: |
+        python package.py --platform windows
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Windows-EXE
-        path: dist/gallery.exe
+        name: Windows-ZIP
+        path: dist/GalleryX-Windows.zip
 
   build-macos:
     runs-on: macos-latest
@@ -37,18 +40,22 @@ jobs:
     - name: Build macOS Application
       run: |
         pyinstaller --noconfirm --clean --windowed --name GalleryX gallery.py
+    - name: Prepare DMG Content
+      run: |
+        python package.py --platform macos --action prepare-dmg
     - name: Create DMG
       run: |
-        mkdir -p dmg-root
-        ditto dist/GalleryX.app dmg-root/GalleryX.app
         hdiutil create \
           -volname "GalleryX" \
           -srcfolder dmg-root \
           -ov \
           -format UDZO \
           dist/GalleryX.dmg
-    - name: Upload DMG Artifact
+    - name: Package macOS ZIP
+      run: |
+        python package.py --platform macos --action zip-dmg
+    - name: Upload macOS ZIP Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: macOS-DMG
-        path: dist/GalleryX.dmg
+        name: macOS-ZIP
+        path: dist/GalleryX-macOS.zip

@@ -18,18 +18,43 @@ class ImageWorker(QThread):
         self.wait()
 
     def run(self):
-        try:
-            files = [f for f in os.listdir(self.folder_path)
-                     if f.lower().endswith(ALL_EXTS)]
-        except Exception:
-            files = []
+        files_to_scan = [] # list of (filepath, filename)
 
-        files.sort()
+        # Check for subfolders: images, videos, pdf
+        subfolders = ["images", "videos", "pdf"]
+        has_subfolders = False
+        for sub in subfolders:
+            subpath = os.path.join(self.folder_path, sub)
+            if os.path.isdir(subpath):
+                has_subfolders = True
+                break
 
-        for filename in files:
+        if has_subfolders:
+            # Scan inside these subfolders
+            for sub in subfolders:
+                subpath = os.path.join(self.folder_path, sub)
+                if os.path.isdir(subpath):
+                    try:
+                        for f in os.listdir(subpath):
+                            if f.lower().endswith(ALL_EXTS):
+                                files_to_scan.append((os.path.join(subpath, f), f))
+                    except Exception as e:
+                        print(f"Error reading subfolder {subpath}: {e}")
+        else:
+            # Fallback to the original behavior of scanning self.folder_path directly
+            try:
+                for f in os.listdir(self.folder_path):
+                    if f.lower().endswith(ALL_EXTS):
+                        files_to_scan.append((os.path.join(self.folder_path, f), f))
+            except Exception as e:
+                print(f"Error reading folder {self.folder_path}: {e}")
+
+        # Sort the files by filename
+        files_to_scan.sort(key=lambda x: x[1])
+
+        for filepath, filename in files_to_scan:
             if not self.running:
                 break
-            filepath = os.path.join(self.folder_path, filename)
             try:
                 stat = os.stat(filepath)
                 dt = datetime.fromtimestamp(stat.st_ctime)
