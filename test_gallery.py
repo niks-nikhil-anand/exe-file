@@ -157,6 +157,12 @@ class TestGalleryApp(unittest.TestCase):
         self.window.detail_viewer.image_scroll.is_fit = False
         self.window.detail_viewer.fit_to_screen()
         self.assertTrue(self.window.detail_viewer.image_scroll.is_fit)
+
+        zoom_area.zoom_in()
+        zoomed_in = zoom_area.zoom_factor
+        self.assertFalse(zoom_area.is_fit)
+        zoom_area.zoom_out()
+        self.assertLess(zoom_area.zoom_factor, zoomed_in)
         
     def test_focused_viewer_open_close(self):
         viewer = self.window.detail_viewer
@@ -166,6 +172,7 @@ class TestGalleryApp(unittest.TestCase):
         viewer.on_grid_item_double_clicked(item)
         
         self.assertEqual(viewer.stacked_widget.currentIndex(), 0)
+        self.assertTrue(self.window.is_fullscreen)
         
         viewer.clear_media()
         self.assertEqual(viewer.stacked_widget.currentIndex(), 4)
