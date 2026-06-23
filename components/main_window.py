@@ -174,10 +174,16 @@ class MainWindow(QMainWindow):
         self.fs_next_btn.hide()
 
     def go_prev_asset(self):
+        if self.detail_viewer.stacked_widget.currentIndex() == 4:
+            self.detail_viewer.stacked_deck.prev_card()
+            return
         if self.current_index > 0:
             self.select_card(self.current_index - 1)
 
     def go_next_asset(self):
+        if self.detail_viewer.stacked_widget.currentIndex() == 4:
+            self.detail_viewer.stacked_deck.next_card()
+            return
         if self.current_index < len(self.cards) - 1:
             self.select_card(self.current_index + 1)
 
@@ -281,8 +287,14 @@ class MainWindow(QMainWindow):
         if not getattr(self, 'is_fullscreen', False):
             return
         
-        self.fs_prev_btn.setVisible(self.current_index > 0)
-        self.fs_next_btn.setVisible(self.current_index < len(self.cards) - 1)
+        if self.detail_viewer.stacked_widget.currentIndex() == 4:
+            can_nav = len(self.detail_viewer.stacked_deck.media_paths) > 1
+            self.fs_prev_btn.setVisible(can_nav)
+            self.fs_next_btn.setVisible(can_nav)
+        else:
+            self.fs_prev_btn.setVisible(self.current_index > 0)
+            self.fs_next_btn.setVisible(self.current_index < len(self.cards) - 1)
+            
         self.position_fs_buttons()
 
     def position_fs_buttons(self):

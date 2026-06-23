@@ -184,23 +184,6 @@ class StackedDeckViewer(QWidget):
         self.top_card.fullscreen_requested.connect(self.fullscreen_requested.emit)
         self.top_card.hide()
         
-        self.btn_prev = QPushButton("❮", self)
-        self.btn_prev.setFixedSize(50, 100)
-        self.btn_prev.setStyleSheet("""
-            QPushButton { background: rgba(30,30,30,0.6); color: white; border: none; border-radius: 8px; font-size: 24px; font-weight: bold; }
-            QPushButton:hover { background: rgba(80,80,80,0.8); }
-        """)
-        self.btn_prev.clicked.connect(self.prev_card)
-        self.btn_prev.hide()
-        self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        self.btn_next = QPushButton("❯", self)
-        self.btn_next.setFixedSize(50, 100)
-        self.btn_next.setStyleSheet(self.btn_prev.styleSheet())
-        self.btn_next.clicked.connect(self.next_card)
-        self.btn_next.hide()
-        self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
-        
         self.hover_anim_progress = 0.0
         self.hover_anim = QPropertyAnimation(self, b"hover_progress")
         self.hover_anim.setDuration(300)
@@ -227,11 +210,9 @@ class StackedDeckViewer(QWidget):
             self.deck_count_changed.emit(len(self.media_paths))
             self.layout_cards()
             self.animate_deck_entry()
-            self.update_nav_buttons()
         else:
             self.top_card.hide()
             self.deck_empty.emit()
-            self.update_nav_buttons()
             
     def append_media(self, paths):
         # Insert new paths at the beginning so they become the new top of the stack
@@ -245,7 +226,6 @@ class StackedDeckViewer(QWidget):
         self.animate_deck_entry()
         
         self.deck_count_changed.emit(len(self.media_paths))
-        self.update_nav_buttons()
         self.update()
             
     def on_top_card_removed(self):
@@ -270,12 +250,10 @@ class StackedDeckViewer(QWidget):
             self.fade_in.finished.connect(lambda: self.top_card.setGraphicsEffect(None))
             self.fade_in.start()
             
-            self.update_nav_buttons()
             self.update()
         else:
             self.top_card.hide()
             self.deck_empty.emit()
-            self.update_nav_buttons()
             
     def animate_deck_entry(self):
         self.effect = QGraphicsOpacityEffect(self.top_card)
@@ -291,19 +269,8 @@ class StackedDeckViewer(QWidget):
         self.is_fullscreen = is_full
         if hasattr(self, 'top_card') and hasattr(self.top_card, 'set_fullscreen_mode'):
             self.top_card.set_fullscreen_mode(is_full)
-        self.update_nav_buttons()
         self.layout_cards()
         self.update()
-        
-    def update_nav_buttons(self):
-        if self.is_fullscreen and len(self.media_paths) > 1:
-            self.btn_prev.show()
-            self.btn_next.show()
-            self.btn_prev.raise_()
-            self.btn_next.raise_()
-        else:
-            self.btn_prev.hide()
-            self.btn_next.hide()
 
     def prev_card(self):
         if len(self.media_paths) > 1:
@@ -334,9 +301,6 @@ class StackedDeckViewer(QWidget):
         
         self.top_card.setGeometry(x, y, card_w, card_h)
         self.top_card.original_pos = QPoint(x, y)
-        
-        self.btn_prev.move(20, (rect.height() - self.btn_prev.height()) // 2)
-        self.btn_next.move(rect.width() - self.btn_next.width() - 20, (rect.height() - self.btn_next.height()) // 2)
         
         self.update()
 
