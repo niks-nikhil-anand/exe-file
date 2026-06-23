@@ -86,6 +86,7 @@ class DraggableTopCard(QFrame):
         lower_path = filepath.lower()
         if lower_path.endswith(IMAGE_EXTS):
             self.active_viewer = ZoomableImageScrollArea()
+            self.active_viewer.restrict_zoom_to_fullscreen = True
             self.active_viewer.set_pixmap(QPixmap(filepath))
         elif lower_path.endswith(VIDEO_EXTS):
             self.active_viewer = VideoViewer()

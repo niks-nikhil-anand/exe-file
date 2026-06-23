@@ -236,47 +236,68 @@ class ZoomableImageScrollArea(QScrollArea):
             super().wheelEvent(event)
             return
 
-        viewport_pos = event.pos()
-        widget_pos = self.widget().mapFrom(self.viewport(), viewport_pos)
+        modifiers = QApplication.keyboardModifiers()
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
+            if getattr(self, 'restrict_zoom_to_fullscreen', False) and not getattr(self, 'is_fullscreen', False):
+                super().wheelEvent(event)
+                return
+                
+            viewport_pos = event.pos()
+            widget_pos = self.widget().mapFrom(self.viewport(), viewport_pos)
 
-        old_zoom = self.zoom_factor
-        if self.is_fit:
-            if self.image_label.pixmap() and hasattr(self, 'original_pixmap') and self.original_pixmap and self.original_pixmap.width() > 0:
-                old_zoom = self.image_label.pixmap().width() / self.original_pixmap.width()
+            old_zoom = self.zoom_factor
+            if self.is_fit:
+                if self.image_label.pixmap() and hasattr(self, 'original_pixmap') and self.original_pixmap and self.original_pixmap.width() > 0:
+                    old_zoom = self.image_label.pixmap().width() / self.original_pixmap.width()
+                else:
+                    old_zoom = 1.0
+                self.is_fit = False
+
+            angle = event.angleDelta().y()
+            factor = 1.15 if angle > 0 else 0.85
+            self.zoom_factor = max(0.1, min(old_zoom * factor, 10.0))
+
+            if self.widget().rect().contains(widget_pos):
+                zoom_center_viewport = viewport_pos
+                zoom_center_widget = widget_pos
             else:
-                old_zoom = 1.0
-            self.is_fit = False
+                zoom_center_viewport = QPoint(self.viewport().width() // 2, self.viewport().height() // 2)
+                zoom_center_widget = self.widget().mapFrom(self.viewport(), zoom_center_viewport)
 
-        angle = event.angleDelta().y()
-        factor = 1.15 if angle > 0 else 0.85
-        self.zoom_factor = max(0.1, min(old_zoom * factor, 10.0))
+            self.update_view()
 
-        if self.widget().rect().contains(widget_pos):
-            zoom_center_viewport = viewport_pos
-            zoom_center_widget = widget_pos
+            if old_zoom > 0:
+                zoom_ratio = self.zoom_factor / old_zoom
+                new_x = zoom_center_widget.x() * zoom_ratio
+                new_y = zoom_center_widget.y() * zoom_ratio
+                self.horizontalScrollBar().setValue(int(new_x - zoom_center_viewport.x()))
+                self.verticalScrollBar().setValue(int(new_y - zoom_center_viewport.y()))
         else:
-            zoom_center_viewport = QPoint(self.viewport().width() // 2, self.viewport().height() // 2)
-            zoom_center_widget = self.widget().mapFrom(self.viewport(), zoom_center_viewport)
-
-        self.update_view()
-
-        if old_zoom > 0:
-            zoom_ratio = self.zoom_factor / old_zoom
-            new_x = zoom_center_widget.x() * zoom_ratio
-            new_y = zoom_center_widget.y() * zoom_ratio
-            self.horizontalScrollBar().setValue(int(new_x - zoom_center_viewport.x()))
-            self.verticalScrollBar().setValue(int(new_y - zoom_center_viewport.y()))
+            super().wheelEvent(event)
 
         event.accept()
 
     def mouseDoubleClickEvent(self, event):
-        self.is_fit = not self.is_fit
-        if self.is_fit:
-            self.zoom_factor = 1.0
-        else:
-            self.zoom_factor = 2.0
-        self.update_view()
+        if getattr(self, 'restrict_zoom_to_fullscreen', False) and not getattr(self, 'is_fullscreen', False):
+            super().mouseDoubleClickEvent(event)
+            return
+            
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.is_fit:
+                self.zoom_factor = 2.0
+                self.is_fit = False
+            else:
+                self.is_fit = True
+                self.zoom_factor = 1.0
+            self.update_view()
         event.accept()
+
+    def viewportEvent(self, event):
+        if event.type() == QEvent.Type.Gesture:
+            if getattr(self, 'restrict_zoom_to_fullscreen', False) and not getattr(self, 'is_fullscreen', False):
+                return super().viewportEvent(event)
+            return self.gestureEvent(event)
+        return super().viewportEvent(event)
 
     def resizeEvent(self, event):
         if self.is_fit:
