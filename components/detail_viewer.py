@@ -103,40 +103,6 @@ class DetailViewer(QWidget):
         self.close_button.clicked.connect(self.clear_media)
         self.close_button.hide()
 
-        # Fit to screen button overlay
-        self.fit_button = QPushButton("Fit", self)
-        self.fit_button.setFixedSize(60, 36)
-        self.fit_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(43, 43, 43, 0.85);
-                color: #e0e0e0;
-                border: 1px solid #444;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: rgba(58, 58, 58, 0.95);
-            }
-        """)
-        self.fit_button.clicked.connect(self.fit_to_screen)
-        self.fit_button.hide()
-
-        self.zoom_out_button = QPushButton("−", self)
-        self.zoom_out_button.setFixedSize(36, 36)
-        self.zoom_out_button.setToolTip("Zoom out")
-        self.zoom_out_button.setStyleSheet(self.fit_button.styleSheet())
-        self.zoom_out_button.clicked.connect(self.image_scroll.zoom_out)
-        self.zoom_out_button.hide()
-
-        self.zoom_in_button = QPushButton("+", self)
-        self.zoom_in_button.setFixedSize(36, 36)
-        self.zoom_in_button.setToolTip("Zoom in")
-        self.zoom_in_button.setStyleSheet(self.fit_button.styleSheet())
-        self.zoom_in_button.clicked.connect(self.image_scroll.zoom_in)
-        self.zoom_in_button.hide()
-
-
-
         # Drag Highlight Overlay
         self.drag_overlay = DragHighlightOverlay(self)
 
@@ -199,15 +165,6 @@ class DetailViewer(QWidget):
             self.image_scroll.zoom_factor = 1.0
             self.image_scroll.update_view()
 
-    def set_image_zoom_controls_visible(self, visible):
-        self.fit_button.setVisible(visible)
-        self.zoom_out_button.setVisible(visible)
-        self.zoom_in_button.setVisible(visible)
-        if visible:
-            self.fit_button.raise_()
-            self.zoom_out_button.raise_()
-            self.zoom_in_button.raise_()
-
     def load_media(self, filepath):
         self.anim.stop()
         self.media_player.stop()
@@ -224,21 +181,17 @@ class DetailViewer(QWidget):
             pixmap = QPixmap(filepath)
             self.current_pixmap = pixmap
             self.image_scroll.set_pixmap(pixmap)
-            self.set_image_zoom_controls_visible(True)
         elif lower_path.endswith(PDF_EXTS):
             self.stacked_widget.setCurrentIndex(2)
-            self.set_image_zoom_controls_visible(False)
             self.pdf_viewer.load_document(filepath)
         elif lower_path.endswith(VIDEO_EXTS):
             self.stacked_widget.setCurrentIndex(1)
-            self.set_image_zoom_controls_visible(False)
             self.video_viewer.load_media(filepath)
         else:
             self.stacked_widget.setCurrentIndex(3)
             import os
             self.placeholder_icon.setText("📄")
             self.placeholder_text.setText(f"Preview not available for: {os.path.basename(filepath)}")
-            self.set_image_zoom_controls_visible(False)
 
         self.close_button.show()
         self.close_button.raise_()
@@ -252,7 +205,6 @@ class DetailViewer(QWidget):
         self.image_scroll.set_pixmap(pixmap)
         self.close_button.show()
         self.close_button.raise_()
-        self.set_image_zoom_controls_visible(True)
 
     def load_multiple_media_deck(self, media_paths, append=False):
         self.anim.stop()
@@ -270,7 +222,6 @@ class DetailViewer(QWidget):
         self.stacked_widget.setCurrentIndex(4) # Stacked deck page
         self.close_button.show()
         self.close_button.raise_()
-        self.set_image_zoom_controls_visible(False)
 
         self.start_stacked_animation()
 
@@ -308,7 +259,6 @@ class DetailViewer(QWidget):
         # Return to deck if focused viewer is closed and we have a deck loaded
         if self.stacked_widget.currentIndex() in [0, 1, 2] and hasattr(self, 'stacked_deck') and self.stacked_deck.media_paths:
             self.stacked_widget.setCurrentIndex(4)
-            self.set_image_zoom_controls_visible(False)
             self.close_button.show()
             self.close_button.raise_()
             self.on_deck_count_changed(len(self.stacked_deck.media_paths))
@@ -329,7 +279,6 @@ class DetailViewer(QWidget):
         self.placeholder_icon.setText("🖼️")
         self.placeholder_text.setText("Select a media file or drop multiple items here")
         self.close_button.hide()
-        self.set_image_zoom_controls_visible(False)
         self.media_closed.emit()
 
     @property
@@ -363,15 +312,6 @@ class DetailViewer(QWidget):
         margin = 15
         self.close_button.move(margin, margin)
         self.close_button.raise_()
-
-        self.fit_button.move(margin + 45, margin)
-        self.fit_button.raise_()
-
-        self.zoom_out_button.move(margin + 110, margin)
-        self.zoom_out_button.raise_()
-
-        self.zoom_in_button.move(margin + 151, margin)
-        self.zoom_in_button.raise_()
 
         if hasattr(self, 'drag_overlay'):
             self.drag_overlay.setGeometry(self.rect())

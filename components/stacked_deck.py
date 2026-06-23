@@ -99,6 +99,16 @@ class DraggableTopCard(QFrame):
             self.active_viewer.setStyleSheet("color: #888; font-size: 16px;")
             
         self.content_layout.addWidget(self.active_viewer)
+        
+        # Propagate fullscreen state if it exists
+        parent_deck = self.parentWidget()
+        if parent_deck and hasattr(parent_deck, 'is_fullscreen'):
+            if hasattr(self.active_viewer, 'set_fullscreen_mode'):
+                self.active_viewer.set_fullscreen_mode(parent_deck.is_fullscreen)
+
+    def set_fullscreen_mode(self, is_full):
+        if hasattr(self, 'active_viewer') and hasattr(self.active_viewer, 'set_fullscreen_mode'):
+            self.active_viewer.set_fullscreen_mode(is_full)
 
     def stop_media(self):
         if hasattr(self.active_viewer, 'stop'):
@@ -272,6 +282,8 @@ class StackedDeckViewer(QWidget):
             
     def set_fullscreen_mode(self, is_full):
         self.is_fullscreen = is_full
+        if hasattr(self, 'top_card') and hasattr(self.top_card, 'set_fullscreen_mode'):
+            self.top_card.set_fullscreen_mode(is_full)
         self.update_nav_buttons()
         self.layout_cards()
         self.update()

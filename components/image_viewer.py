@@ -31,6 +31,8 @@ class ZoomableImageScrollArea(QScrollArea):
         if hasattr(self, 'controls_overlay'):
             if is_full:
                 self.controls_overlay.show()
+                self.controls_overlay.raise_()
+                self.controls_overlay.move(self.width() - self.controls_overlay.width() - 20, 20)
             else:
                 self.controls_overlay.hide()
 
@@ -279,8 +281,9 @@ class ZoomableImageScrollArea(QScrollArea):
     def resizeEvent(self, event):
         if self.is_fit:
             self.update_view()
-        if hasattr(self, 'controls_overlay'):
+        if hasattr(self, 'controls_overlay') and self.controls_overlay.isVisible():
             self.controls_overlay.move(self.width() - self.controls_overlay.width() - 20, 20)
+            self.controls_overlay.raise_()
         super().resizeEvent(event)
 
     def mousePressEvent(self, event):
