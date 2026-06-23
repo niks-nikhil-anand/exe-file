@@ -19,10 +19,11 @@ class VideoViewer(QWidget):
         self.video_widget.setStyleSheet("background-color: #000;")
         layout.addWidget(self.video_widget)
 
-        controls = QWidget()
-        controls.setFixedHeight(50)
-        controls.setStyleSheet("background-color: #1e1e1e; border-top: 1px solid #333;")
-        controls_layout = QHBoxLayout(controls)
+        self.controls_widget = QWidget()
+        self.controls_widget.setFixedHeight(50)
+        self.controls_widget.setStyleSheet("background-color: #1e1e1e; border-top: 1px solid #333;")
+        self.controls_widget.hide()  # Hidden by default
+        controls_layout = QHBoxLayout(self.controls_widget)
         controls_layout.setContentsMargins(15, 5, 15, 5)
         controls_layout.setSpacing(10)
 
@@ -30,6 +31,11 @@ class VideoViewer(QWidget):
         self.play_button.setFixedSize(40, 30)
         self.play_button.clicked.connect(self.toggle_play)
         controls_layout.addWidget(self.play_button)
+
+        self.stop_button = QPushButton("⏹")
+        self.stop_button.setFixedSize(40, 30)
+        self.stop_button.clicked.connect(self.stop_playback)
+        controls_layout.addWidget(self.stop_button)
 
         self.position_slider = QSlider(Qt.Orientation.Horizontal)
         self.position_slider.setRange(0, 0)
@@ -39,6 +45,11 @@ class VideoViewer(QWidget):
         self.time_label = QLabel("00:00 / 00:00")
         self.time_label.setStyleSheet("color: #a0a0a0; font-family: monospace;")
         controls_layout.addWidget(self.time_label)
+
+        self.speed_button = QPushButton("1.0x")
+        self.speed_button.setFixedSize(50, 30)
+        self.speed_button.clicked.connect(self.cycle_speed)
+        controls_layout.addWidget(self.speed_button)
 
         self.mute_button = QPushButton("🔊")
         self.mute_button.setFixedSize(40, 30)
@@ -51,9 +62,9 @@ class VideoViewer(QWidget):
         self.volume_slider.setFixedWidth(80)
         self.volume_slider.valueChanged.connect(self.set_volume)
         controls_layout.addWidget(self.volume_slider)
-        layout.addWidget(controls)
+        layout.addWidget(self.controls_widget)
 
-        for button in (self.play_button, self.mute_button):
+        for button in (self.play_button, self.stop_button, self.speed_button, self.mute_button):
             button.setStyleSheet(MEDIA_BUTTON_STYLE)
 
         self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
@@ -63,17 +74,36 @@ class VideoViewer(QWidget):
         self.media_player.stateChanged.connect(self._state_changed)
         self.media_player.setVolume(70)
         self.last_volume = 70
+        self.playback_speeds = [0.5, 1.0, 1.5, 2.0]
+        self.current_speed_index = 1
+
+    def set_fullscreen_mode(self, is_full):
+        self.controls_widget.setVisible(is_full)
 
     def load_media(self, filepath):
         self.stop()
         self.play_button.setText("▶")
         self.time_label.setText("00:00 / 00:00")
         self.position_slider.setValue(0)
+        self.current_speed_index = 1
+        self.speed_button.setText("1.0x")
+        self.media_player.setPlaybackRate(1.0)
         self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(filepath)))
         self.media_player.play()
 
     def stop(self):
         self.media_player.stop()
+        
+    def stop_playback(self):
+        self.stop()
+        self.position_slider.setValue(0)
+        self.play_button.setText("▶")
+
+    def cycle_speed(self):
+        self.current_speed_index = (self.current_speed_index + 1) % len(self.playback_speeds)
+        speed = self.playback_speeds[self.current_speed_index]
+        self.media_player.setPlaybackRate(speed)
+        self.speed_button.setText(f"{speed}x")
 
     def toggle_play(self):
         if self.media_player.state() == QMediaPlayer.PlayingState:

@@ -18,6 +18,7 @@ from services.media_scanner import ImageWorker
 from services.thumbnail_loader import ThumbnailLoader
 from components.sidebar import ImageCard, SidebarListWidget
 from components.detail_viewer import DetailViewer
+from components.thumbnail_strip import ThumbnailStrip
 
 def get_untranslocated_path(app_path):
     if sys.platform != 'darwin':
@@ -120,8 +121,6 @@ class MainWindow(QMainWindow):
             else:
                 base_dir = exec_dir
             
-            # If the base_dir itself doesn't contain media folders but the parent does (e.g. windows exe/ folder),
-            # use the parent folder.
             parent_dir = os.path.abspath(os.path.join(base_dir, ".."))
             has_media_subfolders = any(
                 os.path.isdir(os.path.join(base_dir, sub))
@@ -145,7 +144,6 @@ class MainWindow(QMainWindow):
         self.watcher.directoryChanged.connect(self.on_directory_changed)
         self.setup_watcher(self.scan_folder)
         
-        # Polling timer as a fail-safe backup (every 2 seconds)
         self.poll_timer = QTimer(self)
         self.poll_timer.timeout.connect(self.poll_directories)
         self.poll_timer.start(2000)
@@ -156,6 +154,38 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app:
             app.installEventFilter(self)
+
+        self.setup_fullscreen_buttons()
+
+    def setup_fullscreen_buttons(self):
+        self.fs_prev_btn = QPushButton("❮", self)
+        self.fs_prev_btn.setFixedSize(50, 100)
+        self.fs_prev_btn.setStyleSheet("""
+            QPushButton { background: rgba(30, 30, 30, 0.6); color: white; border: none; border-radius: 8px; font-size: 24px; }
+            QPushButton:hover { background: rgba(80, 80, 80, 0.8); }
+        """)
+        self.fs_prev_btn.clicked.connect(self.go_prev_asset)
+        self.fs_prev_btn.hide()
+        
+        self.fs_next_btn = QPushButton("❯", self)
+        self.fs_next_btn.setFixedSize(50, 100)
+        self.fs_next_btn.setStyleSheet(self.fs_prev_btn.styleSheet())
+        self.fs_next_btn.clicked.connect(self.go_next_asset)
+        self.fs_next_btn.hide()
+
+    def go_prev_asset(self):
+        if self.current_index > 0:
+            self.select_card(self.current_index - 1)
+
+    def go_next_asset(self):
+        if self.current_index < len(self.cards) - 1:
+            self.select_card(self.current_index + 1)
+
+    def on_thumbnail_clicked(self, filepath):
+        for i, card in enumerate(self.cards):
+            if card.filepath == filepath:
+                self.select_card(i)
+                break
 
     def trigger_lazy_load(self):
         if not hasattr(self, 'cards') or not self.cards:
@@ -247,16 +277,38 @@ class MainWindow(QMainWindow):
             self.cards[self.current_index].set_selected(False)
             self.current_index = -1
 
+    def update_fullscreen_overlay(self):
+        if not getattr(self, 'is_fullscreen', False):
+            return
+        
+        self.fs_prev_btn.setVisible(self.current_index > 0)
+        self.fs_next_btn.setVisible(self.current_index < len(self.cards) - 1)
+        self.position_fs_buttons()
+
+    def position_fs_buttons(self):
+        if hasattr(self, 'fs_prev_btn') and hasattr(self, 'fs_next_btn'):
+            center_y = self.height() // 2 - 50
+            self.fs_prev_btn.move(20, center_y)
+            self.fs_next_btn.move(self.width() - 70, center_y)
+            self.fs_prev_btn.raise_()
+            self.fs_next_btn.raise_()
+
     def toggle_fullscreen(self):
         if not hasattr(self, 'is_fullscreen'):
             self.is_fullscreen = False
         self.is_fullscreen = not self.is_fullscreen
+        
+        self.detail_viewer.set_fullscreen_mode(self.is_fullscreen)
+
         if self.is_fullscreen:
             self.sidebar_container.hide()
             self.showFullScreen()
+            self.update_fullscreen_overlay()
         else:
             self.sidebar_container.show()
             self.showNormal()
+            self.fs_prev_btn.hide()
+            self.fs_next_btn.hide()
             
         if hasattr(self.detail_viewer, 'set_fullscreen_mode'):
             self.detail_viewer.set_fullscreen_mode(self.is_fullscreen)
@@ -311,6 +363,7 @@ class MainWindow(QMainWindow):
         selected_card.set_selected(True)
 
         self.scroll_area.ensureWidgetVisible(selected_card)
+        self.update_fullscreen_overlay()
 
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_Escape:
@@ -339,6 +392,8 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        if getattr(self, 'is_fullscreen', False):
+            self.position_fs_buttons()
         self.trigger_lazy_load()
 
     def setup_watcher(self, folder):

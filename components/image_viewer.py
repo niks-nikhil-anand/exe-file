@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QScrollArea, QLabel, QFrame
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QScrollArea, QLabel, QFrame, QWidget, QHBoxLayout, QPushButton
+from PyQt5.QtGui import QPixmap, QTransform
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QEvent
 
 class ZoomableImageScrollArea(QScrollArea):
@@ -22,6 +22,114 @@ class ZoomableImageScrollArea(QScrollArea):
         self.zoom_factor = 1.0
         self.is_fit = True
         self.gesture_start_zoom = 1.0
+        self.is_fullscreen = False
+
+        self.setup_overlay_controls()
+
+    def set_fullscreen_mode(self, is_full):
+        self.is_fullscreen = is_full
+        if hasattr(self, 'controls_overlay'):
+            if is_full:
+                self.controls_overlay.show()
+            else:
+                self.controls_overlay.hide()
+
+    def setup_overlay_controls(self):
+        self.controls_overlay = QWidget(self)
+        self.controls_overlay.setStyleSheet("background-color: rgba(30, 30, 30, 0.8); border-radius: 6px;")
+        
+        controls_layout = QHBoxLayout(self.controls_overlay)
+        controls_layout.setContentsMargins(5, 5, 5, 5)
+        controls_layout.setSpacing(5)
+
+        btn_style = """
+            QPushButton { background: transparent; color: white; border: none; font-size: 14px; padding: 4px; border-radius: 4px; }
+            QPushButton:hover { background: rgba(80, 80, 80, 0.8); }
+        """
+
+        self.btn_fit_screen = QPushButton("Fit")
+        self.btn_fit_screen.setStyleSheet(btn_style)
+        self.btn_fit_screen.clicked.connect(self.fit_to_screen)
+
+        self.btn_fit_width = QPushButton("Fit W")
+        self.btn_fit_width.setStyleSheet(btn_style)
+        self.btn_fit_width.clicked.connect(self.fit_width)
+
+        self.btn_reset = QPushButton("100%")
+        self.btn_reset.setStyleSheet(btn_style)
+        self.btn_reset.clicked.connect(self.reset_zoom)
+
+        self.btn_zoom_out = QPushButton("➖")
+        self.btn_zoom_out.setStyleSheet(btn_style)
+        self.btn_zoom_out.clicked.connect(self.zoom_out)
+
+        self.btn_zoom_in = QPushButton("➕")
+        self.btn_zoom_in.setStyleSheet(btn_style)
+        self.btn_zoom_in.clicked.connect(self.zoom_in)
+
+        self.btn_rot_l = QPushButton("⟲")
+        self.btn_rot_l.setStyleSheet(btn_style)
+        self.btn_rot_l.clicked.connect(self.rotate_left)
+
+        self.btn_rot_r = QPushButton("⟳")
+        self.btn_rot_r.setStyleSheet(btn_style)
+        self.btn_rot_r.clicked.connect(self.rotate_right)
+        
+        self.btn_flip_h = QPushButton("↔")
+        self.btn_flip_h.setStyleSheet(btn_style)
+        self.btn_flip_h.clicked.connect(self.flip_horizontal)
+        
+        self.btn_flip_v = QPushButton("↕")
+        self.btn_flip_v.setStyleSheet(btn_style)
+        self.btn_flip_v.clicked.connect(self.flip_vertical)
+
+        for btn in [self.btn_fit_screen, self.btn_fit_width, self.btn_reset, self.btn_zoom_out, self.btn_zoom_in, self.btn_rot_l, self.btn_rot_r, self.btn_flip_h, self.btn_flip_v]:
+            controls_layout.addWidget(btn)
+
+        self.controls_overlay.adjustSize()
+        self.controls_overlay.hide()
+
+    def fit_to_screen(self):
+        self.is_fit = True
+        self.update_view()
+
+    def fit_width(self):
+        if not self.original_pixmap or self.original_pixmap.isNull():
+            return
+        viewport_width = self.viewport().width()
+        self.zoom_factor = viewport_width / self.original_pixmap.width()
+        self.is_fit = False
+        self.update_view()
+
+    def reset_zoom(self):
+        self.zoom_factor = 1.0
+        self.is_fit = False
+        self.update_view()
+
+    def rotate(self, angle):
+        if not self.original_pixmap or self.original_pixmap.isNull():
+            return
+        transform = QTransform().rotate(angle)
+        self.original_pixmap = self.original_pixmap.transformed(transform, Qt.TransformationMode.SmoothTransformation)
+        self.update_view()
+
+    def rotate_left(self):
+        self.rotate(-90)
+
+    def rotate_right(self):
+        self.rotate(90)
+
+    def flip_horizontal(self):
+        if not self.original_pixmap or self.original_pixmap.isNull():
+            return
+        self.original_pixmap = self.original_pixmap.transformed(QTransform().scale(-1, 1), Qt.TransformationMode.SmoothTransformation)
+        self.update_view()
+
+    def flip_vertical(self):
+        if not self.original_pixmap or self.original_pixmap.isNull():
+            return
+        self.original_pixmap = self.original_pixmap.transformed(QTransform().scale(1, -1), Qt.TransformationMode.SmoothTransformation)
+        self.update_view()
 
     def set_pixmap(self, pixmap):
         self.original_pixmap = pixmap
@@ -118,6 +226,9 @@ class ZoomableImageScrollArea(QScrollArea):
         self.update_cursor()
         super().enterEvent(event)
 
+    def leaveEvent(self, event):
+        super().leaveEvent(event)
+
     def wheelEvent(self, event):
         if not self.original_pixmap or self.original_pixmap.isNull():
             super().wheelEvent(event)
@@ -168,6 +279,8 @@ class ZoomableImageScrollArea(QScrollArea):
     def resizeEvent(self, event):
         if self.is_fit:
             self.update_view()
+        if hasattr(self, 'controls_overlay'):
+            self.controls_overlay.move(self.width() - self.controls_overlay.width() - 20, 20)
         super().resizeEvent(event)
 
     def mousePressEvent(self, event):

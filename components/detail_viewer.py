@@ -280,6 +280,13 @@ class DetailViewer(QWidget):
     def set_fullscreen_mode(self, is_full):
         if hasattr(self, 'stacked_deck'):
             self.stacked_deck.set_fullscreen_mode(is_full)
+        if hasattr(self, 'image_scroll') and hasattr(self.image_scroll, 'set_fullscreen_mode'):
+            self.image_scroll.set_fullscreen_mode(is_full)
+        if hasattr(self, 'video_viewer') and hasattr(self.video_viewer, 'set_fullscreen_mode'):
+            self.video_viewer.set_fullscreen_mode(is_full)
+        if hasattr(self, 'pdf_viewer') and hasattr(self.pdf_viewer, 'set_fullscreen_mode'):
+            self.pdf_viewer.set_fullscreen_mode(is_full)
+            
         if is_full:
             self.close_button.hide()
         elif self.stacked_widget.currentIndex() != 3:
