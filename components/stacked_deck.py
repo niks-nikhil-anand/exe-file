@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QFrame, QGraphicsOpacityEffect
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QGraphicsOpacityEffect, QPushButton
 )
 from PyQt5.QtGui import QPainter, QColor, QPen, QTransform, QIcon, QPixmap
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtProperty, QPropertyAnimation, QEasingCurve, QRect, QPoint, QTimer
@@ -12,6 +12,7 @@ from components.pdf_viewer import PdfViewer
 
 class DraggableTopCard(QFrame):
     dragged_away = pyqtSignal()
+    fullscreen_requested = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -40,13 +41,35 @@ class DraggableTopCard(QFrame):
             }
         """)
         self.handle.setCursor(Qt.CursorShape.OpenHandCursor)
-        handle_layout = QVBoxLayout(self.handle)
-        handle_layout.setContentsMargins(0, 0, 0, 0)
-        handle_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        handle_layout = QHBoxLayout(self.handle)
+        handle_layout.setContentsMargins(10, 0, 10, 0)
+        
+        self.btn_fullscreen = QPushButton("⛶")
+        self.btn_fullscreen.setFixedSize(24, 24)
+        self.btn_fullscreen.setStyleSheet("""
+            QPushButton { background: transparent; color: #aaa; border: none; font-size: 16px; }
+            QPushButton:hover { color: #fff; }
+        """)
+        self.btn_fullscreen.clicked.connect(self.fullscreen_requested.emit)
+        
+        self.btn_close = QPushButton("✕")
+        self.btn_close.setFixedSize(24, 24)
+        self.btn_close.setStyleSheet("""
+            QPushButton { background: transparent; color: #aaa; border: none; font-size: 14px; font-weight: bold; }
+            QPushButton:hover { color: #ff4444; }
+        """)
+        self.btn_close.clicked.connect(lambda: self.animate_dismiss(QPoint(500, -500)))
+        
+        handle_layout.addWidget(self.btn_fullscreen)
+        handle_layout.addStretch()
+        
         handle_indicator = QFrame()
         handle_indicator.setFixedSize(40, 4)
         handle_indicator.setStyleSheet("background-color: #666; border-radius: 2px;")
         handle_layout.addWidget(handle_indicator)
+        
+        handle_layout.addStretch()
+        handle_layout.addWidget(self.btn_close)
         
         self.layout.addWidget(self.handle)
         
@@ -143,6 +166,7 @@ class DraggableTopCard(QFrame):
 class StackedDeckViewer(QWidget):
     deck_empty = pyqtSignal()
     deck_count_changed = pyqtSignal(int)
+    fullscreen_requested = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -152,6 +176,7 @@ class StackedDeckViewer(QWidget):
         
         self.top_card = DraggableTopCard(self)
         self.top_card.dragged_away.connect(self.on_top_card_removed)
+        self.top_card.fullscreen_requested.connect(self.fullscreen_requested.emit)
         self.top_card.hide()
         
         self.hover_anim_progress = 0.0

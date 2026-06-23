@@ -71,6 +71,7 @@ class DetailViewer(QWidget):
         self.stacked_deck = StackedDeckViewer()
         self.stacked_deck.deck_empty.connect(self.clear_media)
         self.stacked_deck.deck_count_changed.connect(self.on_deck_count_changed)
+        self.stacked_deck.fullscreen_requested.connect(self.fullscreen_requested.emit)
         self.stacked_widget.addWidget(self.stacked_deck)
 
         self.anim = QPropertyAnimation(self.stacked_widget)
@@ -134,19 +135,7 @@ class DetailViewer(QWidget):
         self.zoom_in_button.clicked.connect(self.image_scroll.zoom_in)
         self.zoom_in_button.hide()
 
-        # Image Count Badge
-        self.badge_label = QLabel(self)
-        self.badge_label.setStyleSheet("""
-            QLabel {
-                background-color: rgba(56, 189, 248, 0.95);
-                color: #0f172a;
-                border-radius: 4px;
-                padding: 4px 10px;
-                font-size: 13px;
-                font-weight: bold;
-            }
-        """)
-        self.badge_label.hide()
+
 
         # Drag Highlight Overlay
         self.drag_overlay = DragHighlightOverlay(self)
@@ -286,12 +275,7 @@ class DetailViewer(QWidget):
         self.start_stacked_animation()
 
     def on_deck_count_changed(self, count):
-        if count > 0:
-            self.badge_label.setText(f"📁 {count} Item{'s' if count != 1 else ''} in Deck")
-            self.badge_label.show()
-            self.badge_label.raise_()
-        else:
-            self.badge_label.hide()
+        pass
 
     def start_stacked_animation(self):
         self.anim.stop()
@@ -331,7 +315,6 @@ class DetailViewer(QWidget):
         self.placeholder_text.setText("Select a media file or drop multiple items here")
         self.close_button.hide()
         self.set_image_zoom_controls_visible(False)
-        self.badge_label.hide()
         self.media_closed.emit()
 
     @property
@@ -374,10 +357,6 @@ class DetailViewer(QWidget):
 
         self.zoom_in_button.move(margin + 151, margin)
         self.zoom_in_button.raise_()
-
-        if hasattr(self, 'badge_label'):
-            self.badge_label.move(margin + 200, margin + 4)
-            self.badge_label.raise_()
 
         if hasattr(self, 'drag_overlay'):
             self.drag_overlay.setGeometry(self.rect())

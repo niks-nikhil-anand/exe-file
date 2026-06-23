@@ -299,7 +299,6 @@ class MainWindow(QMainWindow):
             for c in self.cards:
                 c.set_selected(c == card)
             self.current_index = index
-            self.detail_viewer.load_media(filepath)
 
         print("Debug on_card_clicked: Selected cards:")
         for c in self.cards:
@@ -318,7 +317,6 @@ class MainWindow(QMainWindow):
         selected_card.set_selected(True)
 
         self.scroll_area.ensureWidgetVisible(selected_card)
-        self.detail_viewer.load_media(selected_card.filepath)
 
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_Escape:
@@ -420,7 +418,7 @@ class MainWindow(QMainWindow):
                     self.select_card(0)
                 else:
                     self.current_index = -1
-                    self.detail_viewer.clear()
+                    self.detail_viewer.clear_media()
         
         QTimer.singleShot(50, self.trigger_lazy_load)
         
