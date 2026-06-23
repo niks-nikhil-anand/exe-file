@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
         self.detail_viewer = DetailViewer()
         self.detail_viewer.media_closed.connect(self.clear_selection)
         self.detail_viewer.image_clicked.connect(self.toggle_fullscreen)
-        self.detail_viewer.fullscreen_requested.connect(self.enter_fullscreen)
+        self.detail_viewer.fullscreen_requested.connect(self.toggle_fullscreen)
         self.splitter.addWidget(self.detail_viewer)
 
         self.sidebar_container = QWidget()
@@ -257,21 +257,15 @@ class MainWindow(QMainWindow):
         else:
             self.sidebar_container.show()
             self.showNormal()
+            
+        if hasattr(self.detail_viewer, 'set_fullscreen_mode'):
+            self.detail_viewer.set_fullscreen_mode(self.is_fullscreen)
 
     def enter_fullscreen(self):
         if not getattr(self, 'is_fullscreen', False):
             self.toggle_fullscreen()
 
     def eventFilter(self, watched, event):
-        if getattr(self, 'is_fullscreen', False) and event.type() == QEvent.MouseMove:
-            pos = self.mapFromGlobal(event.globalPos())
-            w = self.width()
-            if self.sidebar_container.isHidden():
-                if pos.x() >= w - 80:
-                    self.sidebar_container.show()
-            else:
-                if pos.x() < w - 300:
-                    self.sidebar_container.hide()
         return super().eventFilter(watched, event)
 
     def on_card_clicked(self, filepath, card):
@@ -322,6 +316,16 @@ class MainWindow(QMainWindow):
         if event.key() == Qt.Key.Key_Escape:
             if getattr(self, 'is_fullscreen', False):
                 self.toggle_fullscreen()
+                event.accept()
+                return
+        if event.key() == Qt.Key.Key_Left:
+            if self.detail_viewer.stacked_widget.currentIndex() == 4:
+                self.detail_viewer.stacked_deck.prev_card()
+                event.accept()
+                return
+        elif event.key() == Qt.Key.Key_Right:
+            if self.detail_viewer.stacked_widget.currentIndex() == 4:
+                self.detail_viewer.stacked_deck.next_card()
                 event.accept()
                 return
         if event.key() == Qt.Key.Key_Up:

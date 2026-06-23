@@ -277,6 +277,14 @@ class DetailViewer(QWidget):
     def on_deck_count_changed(self, count):
         pass
 
+    def set_fullscreen_mode(self, is_full):
+        if hasattr(self, 'stacked_deck'):
+            self.stacked_deck.set_fullscreen_mode(is_full)
+        if is_full:
+            self.close_button.hide()
+        elif self.stacked_widget.currentIndex() != 3:
+            self.close_button.show()
+
     def start_stacked_animation(self):
         self.anim.stop()
         self.opacity_effect = QGraphicsOpacityEffect(self.stacked_widget)
