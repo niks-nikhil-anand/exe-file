@@ -13,10 +13,10 @@ from PyQt5.QtCore import (
 
 from config.constants import IMAGE_EXTS, VIDEO_EXTS, PDF_EXTS
 from components.image_viewer import ZoomableImageScrollArea
-from components.grid_image_item import GridImageItem
 from components.drag_overlay import DragHighlightOverlay
 from components.video_viewer import VideoViewer
 from components.pdf_viewer import PdfViewer
+from components.stacked_deck import StackedDeckViewer
 
 class DetailViewer(QWidget):
     media_closed = pyqtSignal()
@@ -67,21 +67,11 @@ class DetailViewer(QWidget):
 
         self.stacked_widget.addWidget(self.placeholder_container)
 
-        # 5. Multi Image View Setup (Scrollable Grid)
-        self.multi_image_scroll = QScrollArea()
-        self.multi_image_scroll.setWidgetResizable(True)
-        self.multi_image_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.multi_image_scroll.setStyleSheet("background-color: #121212;")
-        self.multi_image_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
-        self.multi_image_container = QWidget()
-        self.multi_image_container.setStyleSheet("background-color: #121212;")
-        self.multi_image_grid = QGridLayout(self.multi_image_container)
-        self.multi_image_grid.setContentsMargins(15, 15, 15, 15)
-        self.multi_image_grid.setSpacing(15)
-
-        self.multi_image_scroll.setWidget(self.multi_image_container)
-        self.stacked_widget.addWidget(self.multi_image_scroll)
+        # 5. Multi Image View Setup (Stacked Deck)
+        self.stacked_deck = StackedDeckViewer()
+        self.stacked_deck.deck_empty.connect(self.clear_media)
+        self.stacked_deck.deck_count_changed.connect(self.on_deck_count_changed)
+        self.stacked_widget.addWidget(self.stacked_deck)
 
         self.anim = QPropertyAnimation(self.stacked_widget)
         self.anim.setPropertyName(b"opacity")
@@ -163,25 +153,25 @@ class DetailViewer(QWidget):
 
         self.current_filepath = None
         self.current_pixmap = None
-        self.grid_items = []
 
         # Start on the placeholder screen
         self.stacked_widget.setCurrentIndex(3)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
-            has_image = False
+            has_media = False
             for url in event.mimeData().urls():
-                if url.toLocalFile().lower().endswith(IMAGE_EXTS):
-                    has_image = True
+                path = url.toLocalFile().lower()
+                if path.endswith(IMAGE_EXTS) or path.endswith(VIDEO_EXTS) or path.endswith(PDF_EXTS):
+                    has_media = True
                     break
-            if has_image:
+            if has_media:
                 self.set_drag_highlight(True)
                 event.acceptProposedAction()
 
     def dragLeaveEvent(self, event):
         self.set_drag_highlight(False)
-        event.acceptProposedAction()
+        event.accept()
 
     def dragMoveEvent(self, event):
         event.acceptProposedAction()
@@ -189,19 +179,20 @@ class DetailViewer(QWidget):
     def dropEvent(self, event):
         self.set_drag_highlight(False)
         if event.mimeData().hasUrls():
-            image_paths = []
+            media_paths = []
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
-                if path.lower().endswith(IMAGE_EXTS):
-                    image_paths.append(path)
-            if image_paths:
-                print(f"Debug: Number of dropped images: {len(image_paths)}")
+                lower_path = path.lower()
+                if lower_path.endswith(IMAGE_EXTS) or lower_path.endswith(VIDEO_EXTS) or lower_path.endswith(PDF_EXTS):
+                    media_paths.append(path)
+            if media_paths:
+                print(f"Debug: Number of dropped media: {len(media_paths)}")
                 # A drag that starts from an unselected sidebar card briefly opens
-                # that card in the focused viewer.  The grid itself is still alive,
+                # that card in the focused viewer.  The deck itself is still alive,
                 # so use its contents (rather than the visible stacked page) to
-                # decide whether this drop continues the current grid session.
-                append_to_grid = bool(self.grid_items)
-                self.load_multiple_media_grid(image_paths, append=append_to_grid)
+                # decide whether this drop continues the current deck session.
+                append_to_deck = bool(self.stacked_deck.media_paths)
+                self.load_multiple_media_deck(media_paths, append=append_to_deck)
                 event.acceptProposedAction()
 
     def set_drag_highlight(self, active):
@@ -274,7 +265,7 @@ class DetailViewer(QWidget):
         self.close_button.raise_()
         self.set_image_zoom_controls_visible(True)
 
-    def load_multiple_media_grid(self, image_paths, append=False):
+    def load_multiple_media_deck(self, media_paths, append=False):
         self.anim.stop()
         self.media_player.stop()
         self.pdf_viewer.clear()
@@ -282,127 +273,25 @@ class DetailViewer(QWidget):
         self.current_filepath = None
         self.current_pixmap = None
 
-        if not append:
-            self.clear_grid_items()
-            self.current_media_list = []
-            self.grid_items = []
-        elif not hasattr(self, 'current_media_list'):
-            self.current_media_list = []
+        if append:
+            self.stacked_deck.append_media(media_paths)
+        else:
+            self.stacked_deck.load_media(media_paths)
 
-        for path in image_paths:
-            self.current_media_list.append(path)
-            item = GridImageItem(path, self)
-            item.clicked.connect(self.on_grid_item_clicked)
-            item.double_clicked.connect(self.on_grid_item_double_clicked)
-            item.remove_requested.connect(self.on_remove_item_requested)
-            self.grid_items.append(item)
-
-        self.rebuild_multi_image_grid(force=True)
-
-        self.stacked_widget.setCurrentIndex(4) # Multi-image grid page
+        self.stacked_widget.setCurrentIndex(4) # Stacked deck page
         self.close_button.show()
         self.close_button.raise_()
         self.set_image_zoom_controls_visible(False)
-        self.update_image_count_badge()
 
         self.start_stacked_animation()
 
-    def on_grid_item_clicked(self, clicked_item):
-        for item in self.grid_items:
-            item.set_selected(item == clicked_item)
-
-    def on_grid_item_double_clicked(self, clicked_item):
-        self.badge_label.hide()
-        self.load_focused_image(clicked_item.filepath)
-        # A grid double-click means "open this image" rather than merely select
-        # it, so promote the focused viewer to the application's fullscreen mode.
-        self.fullscreen_requested.emit()
-
-    def on_remove_item_requested(self, item):
-        path = item.filepath
-        if hasattr(self, 'current_media_list') and path in self.current_media_list:
-            self.current_media_list.remove(path)
-
-        if item in self.grid_items:
-            self.grid_items.remove(item)
-
-        self.multi_image_grid.removeWidget(item)
-        item.setParent(None)
-        item.deleteLater()
-
-        if not self.grid_items:
-            self.clear_media()
-        else:
-            self.rebuild_multi_image_grid(force=True)
-            self.update_image_count_badge()
-
-    def update_image_count_badge(self):
-        if hasattr(self, 'grid_items') and self.grid_items:
-            count = len(self.grid_items)
-            self.badge_label.setText(f"📁 {count} Image{'s' if count != 1 else ''}")
+    def on_deck_count_changed(self, count):
+        if count > 0:
+            self.badge_label.setText(f"📁 {count} Item{'s' if count != 1 else ''} in Deck")
             self.badge_label.show()
             self.badge_label.raise_()
         else:
             self.badge_label.hide()
-
-    def clear_grid_items(self):
-        if hasattr(self, 'grid_items'):
-            for item in self.grid_items:
-                self.multi_image_grid.removeWidget(item)
-                item.setParent(None)
-                item.deleteLater()
-            self.grid_items = []
-
-    def rebuild_multi_image_grid(self, force=False):
-        if not hasattr(self, 'grid_items') or not self.grid_items:
-            return
-
-        image_count = len(self.grid_items)
-
-        # Keep the first few layouts predictable: one image fills the viewer,
-        # two images sit side-by-side, and a third starts the second row.
-        # Larger collections continue as a balanced grid.
-        import math
-        if image_count == 1:
-            cols = 1
-        elif image_count <= 4:
-            cols = 2
-        else:
-            cols = math.ceil(math.sqrt(image_count))
-        rows = math.ceil(image_count / cols)
-        self.current_grid_cols = cols
-
-        # A single image should use the complete grid viewport.  Multi-image
-        # layouts retain a small gutter so their boundaries remain clear.
-        if image_count == 1:
-            self.multi_image_grid.setContentsMargins(0, 0, 0, 0)
-            self.multi_image_grid.setSpacing(0)
-        else:
-            self.multi_image_grid.setContentsMargins(8, 8, 8, 8)
-            self.multi_image_grid.setSpacing(8)
-
-        # Clear previous layout stretches
-        for r in range(self.multi_image_grid.rowCount()):
-            self.multi_image_grid.setRowStretch(r, 0)
-        for c in range(self.multi_image_grid.columnCount()):
-            self.multi_image_grid.setColumnStretch(c, 0)
-
-        for item in self.grid_items:
-            self.multi_image_grid.removeWidget(item)
-
-        for idx, item in enumerate(self.grid_items):
-            row = idx // cols
-            col = idx % cols
-            self.multi_image_grid.addWidget(item, row, col)
-
-        for r in range(rows):
-            self.multi_image_grid.setRowStretch(r, 1)
-        for c in range(cols):
-            self.multi_image_grid.setColumnStretch(c, 1)
-
-        for item in self.grid_items:
-            item.single_mode = image_count == 1
-            item.update_image()
 
     def start_stacked_animation(self):
         self.anim.stop()
@@ -417,13 +306,13 @@ class DetailViewer(QWidget):
         self.image_scroll.update_view()
 
     def clear_media(self):
-        # Return to multi-image grid if focused viewer is closed and we have a grid loaded
-        if self.stacked_widget.currentIndex() == 0 and hasattr(self, 'grid_items') and self.grid_items:
+        # Return to deck if focused viewer is closed and we have a deck loaded
+        if self.stacked_widget.currentIndex() in [0, 1, 2] and hasattr(self, 'stacked_deck') and self.stacked_deck.media_paths:
             self.stacked_widget.setCurrentIndex(4)
             self.set_image_zoom_controls_visible(False)
             self.close_button.show()
             self.close_button.raise_()
-            self.update_image_count_badge()
+            self.on_deck_count_changed(len(self.stacked_deck.media_paths))
             return
 
         self.anim.stop()
@@ -435,11 +324,11 @@ class DetailViewer(QWidget):
         self.current_filepath = None
         self.current_pixmap = None
         self.image_scroll.set_pixmap(QPixmap())
-        self.clear_grid_items()
+        self.stacked_deck.clear()
 
         self.stacked_widget.setCurrentIndex(3)
         self.placeholder_icon.setText("🖼️")
-        self.placeholder_text.setText("Select a media file or drop multiple images here")
+        self.placeholder_text.setText("Select a media file or drop multiple items here")
         self.close_button.hide()
         self.set_image_zoom_controls_visible(False)
         self.badge_label.hide()
@@ -471,8 +360,6 @@ class DetailViewer(QWidget):
     def resizeEvent(self, event):
         if self.stacked_widget.currentIndex() == 0:
             self.update_image()
-        elif self.stacked_widget.currentIndex() == 4:
-            self.rebuild_multi_image_grid()
         super().resizeEvent(event)
 
         margin = 15
