@@ -136,8 +136,15 @@ class DraggableTopCard(QFrame):
         if event.button() == Qt.MouseButton.LeftButton and self.is_dragging:
             self.is_dragging = False
             self.handle.setCursor(Qt.CursorShape.OpenHandCursor)
-            # Reverted to snap back instead of dismiss to prevent clearing the stack
-            self.animate_return()
+            
+            delta = self.pos() - self.original_pos
+            distance = (delta.x()**2 + delta.y()**2) ** 0.5
+            
+            # Dismiss if dragged away more than 100 pixels
+            if distance > 100:
+                self.animate_dismiss(delta)
+            else:
+                self.animate_return()
             event.accept()
         else:
             super().mouseReleaseEvent(event)
