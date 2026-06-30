@@ -43,16 +43,6 @@ class DraggableTopCard(QFrame):
         self.handle.setCursor(Qt.CursorShape.OpenHandCursor)
         handle_layout = QHBoxLayout(self.handle)
         handle_layout.setContentsMargins(10, 0, 10, 0)
-        
-        self.btn_fullscreen = QPushButton("⛶")
-        self.btn_fullscreen.setFixedSize(24, 24)
-        self.btn_fullscreen.setStyleSheet("""
-            QPushButton { background: transparent; color: #aaa; border: none; font-size: 16px; }
-            QPushButton:hover { color: #fff; }
-        """)
-        self.btn_fullscreen.clicked.connect(self.fullscreen_requested.emit)
-        
-        handle_layout.addWidget(self.btn_fullscreen)
         handle_layout.addStretch()
         
         handle_indicator = QFrame()

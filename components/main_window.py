@@ -40,7 +40,6 @@ def get_untranslocated_path(app_path):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Pro Image Gallery")
         self.resize(1200, 800)
         self.setStyleSheet(f"background-color: {BG_COLOR.name()};")
 
@@ -49,8 +48,6 @@ class MainWindow(QMainWindow):
 
         self.detail_viewer = DetailViewer()
         self.detail_viewer.media_closed.connect(self.clear_selection)
-        self.detail_viewer.image_clicked.connect(self.toggle_fullscreen)
-        self.detail_viewer.fullscreen_requested.connect(self.toggle_fullscreen)
         self.splitter.addWidget(self.detail_viewer)
 
         self.sidebar_container = QWidget()

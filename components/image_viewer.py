@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QScrollArea, QLabel, QFrame, QWidget, QHBoxLayout, QPushButton
+from PyQt5.QtWidgets import QScrollArea, QLabel, QFrame, QWidget, QHBoxLayout, QPushButton, QApplication
 from PyQt5.QtGui import QPixmap, QTransform
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QEvent
 
@@ -29,12 +29,9 @@ class ZoomableImageScrollArea(QScrollArea):
     def set_fullscreen_mode(self, is_full):
         self.is_fullscreen = is_full
         if hasattr(self, 'controls_overlay'):
-            if is_full:
-                self.controls_overlay.show()
-                self.controls_overlay.raise_()
-                self.controls_overlay.move(self.width() - self.controls_overlay.width() - 20, 20)
-            else:
-                self.controls_overlay.hide()
+            self.controls_overlay.show()
+            self.controls_overlay.raise_()
+            self.controls_overlay.move(self.width() - self.controls_overlay.width() - 20, 20)
 
     def setup_overlay_controls(self):
         self.controls_overlay = QWidget(self)
@@ -89,7 +86,7 @@ class ZoomableImageScrollArea(QScrollArea):
             controls_layout.addWidget(btn)
 
         self.controls_overlay.adjustSize()
-        self.controls_overlay.hide()
+        self.controls_overlay.show()
 
     def fit_to_screen(self):
         self.is_fit = True

@@ -22,7 +22,7 @@ class PdfViewer(QWidget):
         self.controls_widget = QWidget()
         self.controls_widget.setFixedHeight(50)
         self.controls_widget.setStyleSheet("background-color:#1e1e1e; border-bottom:1px solid #333;")
-        self.controls_widget.hide()  # Hidden by default
+        self.controls_widget.show()
         controls_layout = QHBoxLayout(self.controls_widget)
 
         self.previous_button = QPushButton("◀ Prev")
@@ -73,7 +73,7 @@ class PdfViewer(QWidget):
         self.zoom_label.setStyleSheet("color:#a0a0a0;")
 
     def set_fullscreen_mode(self, is_full):
-        self.controls_widget.setVisible(is_full)
+        pass
 
     def load_document(self, filepath):
         self.clear()

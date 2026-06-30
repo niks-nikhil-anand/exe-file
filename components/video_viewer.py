@@ -18,11 +18,10 @@ class VideoViewer(QWidget):
         self.video_widget = QVideoWidget()
         self.video_widget.setStyleSheet("background-color: #000;")
         layout.addWidget(self.video_widget)
-
         self.controls_widget = QWidget()
         self.controls_widget.setFixedHeight(50)
         self.controls_widget.setStyleSheet("background-color: #1e1e1e; border-top: 1px solid #333;")
-        self.controls_widget.hide()  # Hidden by default
+        self.controls_widget.show()
         controls_layout = QHBoxLayout(self.controls_widget)
         controls_layout.setContentsMargins(15, 5, 15, 5)
         controls_layout.setSpacing(10)
@@ -78,7 +77,7 @@ class VideoViewer(QWidget):
         self.current_speed_index = 1
 
     def set_fullscreen_mode(self, is_full):
-        self.controls_widget.setVisible(is_full)
+        pass
 
     def load_media(self, filepath):
         self.stop()

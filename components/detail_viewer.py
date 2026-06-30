@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
     QSplitter, QGraphicsOpacityEffect, QFrame, QMainWindow, QStackedWidget,
     QPushButton, QSlider, QGridLayout, QLayout
 )
@@ -52,18 +52,6 @@ class DetailViewer(QWidget):
         # 4. Placeholder View Setup
         self.placeholder_container = QWidget()
         self.placeholder_container.setStyleSheet("background-color: #121212;")
-        placeholder_layout = QVBoxLayout(self.placeholder_container)
-        placeholder_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.placeholder_icon = QLabel("🖼️")
-        self.placeholder_icon.setStyleSheet("font-size: 64px; margin-bottom: 20px;")
-        self.placeholder_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder_layout.addWidget(self.placeholder_icon)
-
-        self.placeholder_text = QLabel("Select a media file or drop multiple images here")
-        self.placeholder_text.setStyleSheet("color: #666666; font-size: 16px; font-weight: 500;")
-        self.placeholder_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder_layout.addWidget(self.placeholder_text)
 
         self.stacked_widget.addWidget(self.placeholder_container)
 
@@ -189,9 +177,6 @@ class DetailViewer(QWidget):
             self.video_viewer.load_media(filepath)
         else:
             self.stacked_widget.setCurrentIndex(3)
-            import os
-            self.placeholder_icon.setText("📄")
-            self.placeholder_text.setText(f"Preview not available for: {os.path.basename(filepath)}")
 
         self.close_button.show()
         self.close_button.raise_()
@@ -276,8 +261,6 @@ class DetailViewer(QWidget):
         self.stacked_deck.clear()
 
         self.stacked_widget.setCurrentIndex(3)
-        self.placeholder_icon.setText("🖼️")
-        self.placeholder_text.setText("Select a media file or drop multiple items here")
         self.close_button.hide()
         self.media_closed.emit()
 
